@@ -19,6 +19,15 @@ Network achitecture referenced LeNet for mnist digits datasets.
 
 ## Usage
 **Note**: This repository is still semi-finished. Dataset only MNIST and USPS are support now. 
+
+* Source domain (MNIST)
+    * Training: 50000 images
+    * Evaluation: 10000 images
+
+* Target domain (USPS)
+    * Training: 7291 images
+    * Evaluation: 2007 images
+
 * step:
     * Step 1 is training source network.
     ```
