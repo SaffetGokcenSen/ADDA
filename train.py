@@ -15,8 +15,8 @@ def step1(source="MNIST",batch_size=64,epoch=10,lr=0.001,
 
     nn = adda.ADDA(classes_num)
     # inference classification network
-    fc1 = nn.s_encoder(x_tr)
-    logits = nn.classifier(fc1)
+    logits = nn.s_encoder(x_tr)
+
 
     # build loss and create optimizer
     c_loss = nn.build_classify_loss(logits,y_tr)
@@ -25,14 +25,13 @@ def step1(source="MNIST",batch_size=64,epoch=10,lr=0.001,
     # build training accuracy with training batch
     tr_acc = nn.eval(logits,y_tr)
     # build testing accuracy with testing data
-    logits_te = nn.classifier(nn.s_encoder(x_te,reuse=True),reuse=True)
+    logits_te = nn.s_encoder(x_te,reuse=True)
     te_acc = nn.eval(logits_te,y_te)
 
     # build saver to save best epoch
     var_s_en = tf.trainable_variables(scope=nn.s_e)
-    var_c = tf.trainable_variables(scope=nn.c)
     encoder_saver = tf.train.Saver(max_to_keep=3,var_list=var_s_en)
-    classifier_saver = tf.train.Saver(max_to_keep=3,var_list=var_c)
+
     # keep the logdir is empty
     utils.fresh_dir(logdir)
 
@@ -56,8 +55,8 @@ def step1(source="MNIST",batch_size=64,epoch=10,lr=0.001,
             eval_acc.append(te_acc_)
             if best_acc < te_acc_:
                 best_acc = te_acc_
-                encoder_saver.save(sess,logdir+"/encoder/encoder.ckpt")  
-                classifier_saver.save(sess,logdir+"/classifier/classifier.ckpt")
+                encoder_saver.save(sess,logdir+"/encoder/Gs.ckpt")  
+
             print("#+++++++++++++++++++++++++++++++++++#")
             print("epoch:{},test_accuracy:{:.4f},best_acc:{:.4f}".format(i,te_acc_,best_acc))
             print("#+++++++++++++++++++++++++++++++++++#")
@@ -80,23 +79,20 @@ def step2(source,target,epoch,batch_size=64,
     # create graph
     nn = adda.ADDA(classes_num)
     # for source domain
-    feat_s = nn.s_encoder(s_x_tr,reuse=False,trainable=False)
-    logits_s = nn.classifier(feat_s,reuse=False,trainable=False)
-    disc_s = nn.discriminator(feat_s,reuse=False)
+    logits_s = nn.s_encoder(s_x_tr,reuse=False,trainable=False)
+
+    disc_s = nn.discriminator(logits_s,reuse=False)
 
     # for target domain
-    feat_t = nn.t_encoder(t_x_tr,reuse=False)
-    logits_t = nn.classifier(feat_t,reuse=True,trainable=False)
-    disc_t = nn.discriminator(feat_t,reuse=True)
+    logits_t = nn.t_encoder(t_x_tr,reuse=False)
+    disc_t = nn.discriminator(logits_t,reuse=True)
     
     # build inference for test accuracy
-    feats_s_te = nn.s_encoder(s_x_te,reuse=True,trainable=False)
-    logits_s_te = nn.classifier(feats_s_te,reuse=True,trainable=False)
-    disc_s_te = nn.discriminator(feats_s_te,reuse=True,trainable=False)
+    logits_s_te = nn.s_encoder(s_x_te,reuse=True,trainable=False)
+    disc_s_te = nn.discriminator(logits_s_te,reuse=True,trainable=False)
 
-    feats_t_te = nn.t_encoder(t_x_te,reuse=True,trainable=False)
-    logits_t_te = nn.classifier(feats_t_te,reuse=True,trainable=False)
-    disc_t_te = nn.discriminator(feats_t_te,reuse=True,trainable=False)
+    logits_t_te = nn.t_encoder(t_x_te,reuse=True,trainable=False)
+    disc_t_te = nn.discriminator(logits_t_te,reuse=True,trainable=False)
 
     # build loss
     g_loss,d_loss = nn.build_ad_loss(disc_s,disc_t)
@@ -120,37 +116,24 @@ def step2(source,target,epoch,batch_size=64,
 
     # create source saver for restore s_encoder
     encoder_path = tf.train.latest_checkpoint(source_dir+"/encoder")
-    classifier_path = tf.train.latest_checkpoint(source_dir+"/classifier")
     if encoder_path is None:
-        raise ValueError("Don't exits in this dir")
-    if classifier_path is None:
         raise ValueError("Don't exits in this dir")
 
     source_var = tf.contrib.framework.list_variables(encoder_path)
 
     var_s_g = tf.global_variables(scope=nn.s_e)
-    var_c_g = tf.global_variables(scope=nn.c)
     var_t_g = tf.trainable_variables(scope=nn.t_e)
-    # print("+++++++++++++++")
-    # print("s_encoder:",len(var_s_g))
-    # print(var_s_g)
-    # print("t_encoder:",len(var_t_g))
-    # print(var_t_g)
-    # print("source s_encoder:",len(source_var))
-    # print(source_var)
-    # print("+++++++++++++++")
     encoder_saver = tf.train.Saver(var_list=var_s_g)
-    classifier_saver = tf.train.Saver(var_list=var_c_g)
+
     dict_var={}
-    #print(type(source_var[0][0]))
-    #print(type(var_t_g[0].name))
+
     for i in source_var:
         for j in var_t_g:
             if i[0][1:] in j.name[1:]:
                 dict_var[i[0]]=j 
     #print(dict_var)
     fine_turn_saver = tf.train.Saver(var_list = dict_var)
-    #assert False 
+
     # create this model saver
     utils.fresh_dir(logdir)
     best_saver = tf.train.Saver(max_to_keep=3)
@@ -169,10 +152,11 @@ def step2(source,target,epoch,batch_size=64,
         sess.run(tf.global_variables_initializer())
         # init s_e and c
         encoder_saver.restore(sess,encoder_path)
-        classifier_saver.restore(sess,classifier_path)
         fine_turn_saver.restore(sess,encoder_path)
+
         print("model init successfully!")
         filewriter = tf.summary.FileWriter(logdir=logdir,graph=sess.graph)
+
         for i in range(epoch):
             _,d_loss_, = sess.run([optim_d,d_loss])
             _,g_loss_,merge_ = sess.run([optim_g,g_loss,merge])
@@ -204,14 +188,12 @@ def step3(source,target,batch_size=64,logdir="./Log/ADDA/advermodel/best/MNIST2U
     # create graph
     nn = adda.ADDA(classes_num)
     # for source domain
-    feat_s = nn.s_encoder(s_x_te,reuse=False,trainable=False)
-    logits_s = nn.classifier(feat_s,reuse=False,trainable=False)
-    disc_s = nn.discriminator(feat_s,reuse=False,trainable=False)
+    logits_s = nn.s_encoder(s_x_te,reuse=False,trainable=False)
+    disc_s = nn.discriminator(logits_s,reuse=False,trainable=False)
 
     # for target domain
-    feat_t = nn.t_encoder(t_x_te,reuse=False,trainable=False)
-    logits_t = nn.classifier(feat_t,reuse=True,trainable=False)
-    disc_t = nn.discriminator(feat_t,reuse=True,trainable=False)
+    logits_t = nn.t_encoder(t_x_te,reuse=False,trainable=False)
+    disc_t = nn.discriminator(logits_t,reuse=True,trainable=False)
 
     source_accuracy = nn.eval(logits_s,s_y_te)
     target_accuracy = nn.eval(logits_t,t_y_te)

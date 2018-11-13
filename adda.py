@@ -19,7 +19,7 @@ class ADDA():
             conv2_pooling = tf.layers.max_pooling2d(conv2,(2,2),(2,2),name='pool2')
             flat = tf.layers.flatten(conv2_pooling,name='flat')
             fc1 = tf.layers.dense(flat,120,activation=tf.nn.relu,trainable=trainable,name='fc1')
-            fc2 = tf.layers.dense(fc1,84,activation=tf.nn.tanh,trainable=trainable,name='fc2')
+            fc2 = tf.layers.dense(fc1,self.classes_num,activation=None,trainable=trainable,name='fc2')
         return fc2
 
     def t_encoder(self,inputs,reuse=False,trainable=True):
@@ -30,13 +30,9 @@ class ADDA():
             conv2_pooling = tf.layers.max_pooling2d(conv2,(2,2),(2,2),name='pool2')
             flat = tf.layers.flatten(conv2_pooling,name='flat')
             fc1 = tf.layers.dense(flat,120,activation=tf.nn.relu,trainable=trainable,name='fc1')
-            fc2 = tf.layers.dense(fc1,84,activation=tf.nn.tanh,trainable=trainable,name='fc2')
+            fc2 = tf.layers.dense(fc1,self.classes_num,activation=None,trainable=trainable,name='fc2')
         return fc2
 
-    def classifier(self,inputs,reuse=False,trainable=True):
-        with tf.variable_scope(self.c,reuse=reuse):
-            fc = tf.layers.dense(inputs,self.classes_num,activation=None,trainable=trainable,name='fc1')
-        return fc
     
     def discriminator(self,inputs,reuse=False,trainable=True):
         with tf.variable_scope(self.d,reuse=reuse):

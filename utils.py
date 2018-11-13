@@ -41,7 +41,7 @@ def plot_tsne(source_feat,source_label,target_feat,target_label,samples=None,nam
     plot_embedding(ax,reduce_target_feat,target_label,1)
     ax.set_xticks([]),ax.set_yticks([])
     ax.legend()
-    plt.savefig("./result/"+name+".jpg")
+    plt.savefig("./result/"+name+".png",bbox_inches='tight')
 
 def select_samples(x,y,each_sample):
     ind = []
